@@ -1,10 +1,11 @@
 # Resicue Database
 ### PostgreSQL
 ```mermaid
+
 erDiagram
 
 users {
-  UUID id PK
+  UUID id
   SERIAL public_id
   VARCHAR first_name
   VARCHAR last_name
@@ -18,21 +19,21 @@ users {
 }
 
 residentials {
-  UUID id PK
+  UUID id
   VARCHAR name
   TEXT address
   VARCHAR city
   VARCHAR state
   VARCHAR country
-  UUID admin_id FK
+  UUID admin_id
   TIMESTAMP created_at
   TIMESTAMP updated_at
 }
 
 user_residentials {
-  UUID id PK
-  UUID user_id FK
-  UUID residential_id FK
+  UUID id
+  UUID user_id
+  UUID residential_id
   BOOLEAN is_owner
   VARCHAR unit_name
   TEXT unit_image_url
@@ -40,8 +41,8 @@ user_residentials {
 }
 
 common_areas {
-  UUID id PK
-  UUID residential_id FK
+  UUID id
+  UUID residential_id
   VARCHAR name
   TEXT description
   TEXT image_url
@@ -50,9 +51,9 @@ common_areas {
 }
 
 reservations {
-  UUID id PK
-  UUID user_id FK
-  UUID common_area_id FK
+  UUID id
+  UUID user_id
+  UUID common_area_id
   TEXT description
   DATE reservation_date
   TIME start_time
@@ -61,12 +62,46 @@ reservations {
   TIMESTAMP created_at
 }
 
+payment_methods {
+  UUID id
+  VARCHAR name
+  TEXT description
+}
+
+sensitive_user_cards {
+  UUID id
+  UUID user_id
+  TEXT card_number_encrypted
+  VARCHAR holder_name
+  INT exp_month
+  INT exp_year
+  TEXT cvv_encrypted
+  TIMESTAMP created_at
+}
+
+user_payment_cards {
+  UUID id
+  UUID user_id
+  VARCHAR brand
+  VARCHAR last4
+  VARCHAR holder_name
+  INT exp_month
+  INT exp_year
+  TEXT token
+  VARCHAR provider
+  BOOLEAN is_active
+  BOOLEAN is_default
+  TIMESTAMP created_at
+}
+
 payments {
-  UUID id PK
-  UUID user_id FK
-  UUID residential_id FK
+  UUID id
+  UUID user_id
+  UUID residential_id
   DECIMAL amount
-  VARCHAR payment_method
+  UUID payment_method_id
+  UUID payment_card_id
+  UUID sensitive_card_id
   TEXT description
   DATE payment_date
   status_type status
@@ -74,8 +109,8 @@ payments {
 }
 
 payment_history {
-  UUID id PK
-  UUID payment_id FK
+  UUID id
+  UUID payment_id
   status_type previous_status
   status_type new_status
   TIMESTAMP changed_at
@@ -83,40 +118,40 @@ payment_history {
 }
 
 access_controls {
-  UUID id PK
+  UUID id
   VARCHAR visitor_name
   VARCHAR visitor_id_document
   TEXT visit_reason
   VARCHAR destination_unit
-  UUID residential_id FK
-  UUID registered_by FK
+  UUID residential_id
+  UUID registered_by
   TIMESTAMP check_in
   TIMESTAMP check_out
-  UUID authorized_by FK
+  UUID authorized_by
   TEXT notes
   TEXT qr_code_data
 }
 
 access_logs {
-  UUID id PK
-  UUID access_control_id FK
+  UUID id
+  UUID access_control_id
   access_event event_type
   TIMESTAMP timestamp
-  UUID recorded_by FK
+  UUID recorded_by
 }
 
 announcements {
-  UUID id PK
+  UUID id
   VARCHAR title
   TEXT content
-  UUID residential_id FK
-  UUID created_by FK
+  UUID residential_id
+  UUID created_by
   TIMESTAMP published_at
   TIMESTAMP expires_at
 }
 
 file_attachments {
-  UUID id PK
+  UUID id
   VARCHAR entity_type
   UUID entity_id
   VARCHAR file_name
@@ -125,8 +160,8 @@ file_attachments {
 }
 
 notifications {
-  UUID id PK
-  UUID user_id FK
+  UUID id
+  UUID user_id
   VARCHAR title
   TEXT message
   VARCHAR type
@@ -135,74 +170,74 @@ notifications {
 }
 
 chats {
-  UUID id PK
-  UUID sender_id FK
-  UUID receiver_id FK
+  UUID id
+  UUID sender_id
+  UUID receiver_id
   TEXT message
   BOOLEAN is_read
   TIMESTAMP sent_at
 }
 
 guard_movements {
-  UUID id PK
-  UUID guard_id FK
+  UUID id
+  UUID guard_id
   access_event movement_type
   TIMESTAMP timestamp
-  UUID residential_id FK
+  UUID residential_id
   TEXT notes
 }
 
 surveys {
-  UUID id PK
+  UUID id
   VARCHAR title
   TEXT description
-  UUID created_by FK
-  UUID residential_id FK
+  UUID created_by
+  UUID residential_id
   TIMESTAMP start_date
   TIMESTAMP end_date
 }
 
 survey_options {
-  UUID id PK
-  UUID survey_id FK
+  UUID id
+  UUID survey_id
   VARCHAR option_text
 }
 
 survey_votes {
-  UUID id PK
-  UUID survey_id FK
-  UUID option_id FK
-  UUID user_id FK
+  UUID id
+  UUID survey_id
+  UUID option_id
+  UUID user_id
   TIMESTAMP voted_at
 }
 
 documents {
-  UUID id PK
+  UUID id
   VARCHAR title
   TEXT description
   TEXT file_url
-  UUID residential_id FK
-  UUID created_by FK
+  UUID residential_id
+  UUID created_by
   VARCHAR document_type
   TIMESTAMP created_at
 }
 
 ownership_transfers {
-  UUID id PK
-  UUID current_owner_id FK
-  UUID new_owner_id FK
-  UUID residential_id FK
+  UUID id
+  UUID current_owner_id
+  UUID new_owner_id
+  UUID residential_id
   VARCHAR unit_name
   TEXT reason
   status_type status
   TIMESTAMP requested_at
   TIMESTAMP resolved_at
-  UUID resolved_by FK
+  UUID resolved_by
 }
 
 transaction_logs {
-  UUID id PK
-  UUID user_id FK
+  UUID id
+  UUID user_id
   VARCHAR entity_type
   UUID entity_id
   action_type action
@@ -213,18 +248,21 @@ transaction_logs {
 
 %% RELATIONSHIPS
 
-users ||--o{ user_residentials : has
-residentials ||--o{ user_residentials : has
-
-users ||--o{ payments : makes
-residentials ||--o{ payments : receives
-payments ||--o{ payment_history : has
+users ||--o{ user_residentials : owns
+residentials ||--o{ user_residentials : contains
 
 users ||--o{ reservations : books
 common_areas ||--o{ reservations : receives
-residentials ||--o{ common_areas : contains
+residentials ||--o{ common_areas : includes
 
-residentials ||--o{ access_controls : manages
+users ||--o{ payments : makes
+residentials ||--o{ payments : receives
+payment_methods ||--o{ payments : used_by
+user_payment_cards ||--o{ payments : used_for
+sensitive_user_cards ||--o{ payments : used_for
+payments ||--o{ payment_history : history
+
+residentials ||--o{ access_controls : controls
 users ||--o{ access_controls : registers
 users ||--o{ access_controls : authorizes
 access_controls ||--o{ access_logs : logs
@@ -235,25 +273,26 @@ users ||--o{ announcements : creates
 announcements ||--o{ file_attachments : attaches
 
 users ||--o{ notifications : receives
+
 users ||--o{ chats : sends
 users ||--o{ chats : receives
 
-users ||--o{ guard_movements : logs
-residentials ||--o{ guard_movements : hosts
+users ||--o{ guard_movements : performs
+residentials ||--o{ guard_movements : hosted_at
 
 users ||--o{ surveys : creates
-residentials ||--o{ surveys : hosts
+residentials ||--o{ surveys : organizes
 surveys ||--o{ survey_options : has
 survey_options ||--o{ survey_votes : receives
 users ||--o{ survey_votes : votes
 
-users ||--o{ documents : uploads
-residentials ||--o{ documents : contains
+users ||--o{ documents : creates
+residentials ||--o{ documents : stores
 
 users ||--o{ ownership_transfers : initiates
+residentials ||--o{ ownership_transfers : occurs_in
 users ||--o{ ownership_transfers : receives
 users ||--o{ ownership_transfers : resolves
-residentials ||--o{ ownership_transfers : has
 
 users ||--o{ transaction_logs : triggers
 ```
