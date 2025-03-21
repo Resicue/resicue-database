@@ -1,22 +1,18 @@
 
--- Set the timezone to Nicaragua
-SET TIME ZONE 'America/Managua';
+-- PostgreSQL schema generated on 2025-03-21 03:24:34
+-- Includes UUIDs, ENUMs, triggers, payment methods, card storage (secure and token), and full ERD
 
-
--- PostgreSQL Schema with UUIDs, ENUMs, automatic timestamps, and triggers
--- Generated on 2025-03-21 03:07:42
-
--- Enable UUID generation
+-- Extensions
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ENUM types
+-- Enums
 CREATE TYPE user_role AS ENUM ('resident', 'admin', 'guard');
 CREATE TYPE status_type AS ENUM ('pending', 'approved', 'cancelled', 'rejected');
 CREATE TYPE transaction_status AS ENUM ('SUCCESS', 'ERROR');
 CREATE TYPE access_event AS ENUM ('check-in', 'check-out');
 CREATE TYPE action_type AS ENUM ('CREATE', 'UPDATE', 'DELETE');
 
--- Trigger function to update 'updated_at'
+-- Trigger function for updated_at
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -98,13 +94,50 @@ CREATE TABLE reservations (
   created_at TIMESTAMP DEFAULT now()
 );
 
+-- PAYMENT METHODS
+CREATE TABLE payment_methods (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR UNIQUE NOT NULL,
+  description TEXT
+);
+
+-- SENSITIVE USER CARDS
+CREATE TABLE sensitive_user_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  card_number_encrypted TEXT NOT NULL,
+  holder_name VARCHAR,
+  exp_month INT,
+  exp_year INT,
+  cvv_encrypted TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+-- TOKENIZED USER CARDS
+CREATE TABLE user_payment_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  brand VARCHAR,
+  last4 VARCHAR(4),
+  holder_name VARCHAR,
+  exp_month INT,
+  exp_year INT,
+  token TEXT NOT NULL,
+  provider VARCHAR NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT now()
+);
+
 -- PAYMENTS
 CREATE TABLE payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id),
   residential_id UUID REFERENCES residentials(id),
   amount DECIMAL(10,2),
-  payment_method VARCHAR,
+  payment_method_id UUID REFERENCES payment_methods(id),
+  payment_card_id UUID REFERENCES user_payment_cards(id),
+  sensitive_card_id UUID REFERENCES sensitive_user_cards(id),
   description TEXT,
   payment_date DATE,
   status status_type DEFAULT 'pending',
@@ -121,7 +154,7 @@ CREATE TABLE payment_history (
   notes TEXT
 );
 
--- ACCESS CONTROLS
+-- ACCESS CONTROL
 CREATE TABLE access_controls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   visitor_name VARCHAR,
